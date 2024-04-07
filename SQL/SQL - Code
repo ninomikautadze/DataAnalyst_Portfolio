@@ -1,0 +1,39 @@
+--Behavior analysis 
+
+SELECT *
+FROM(
+SELECT a.UNI_KEY,
+       a.APP_ID [Application ID],
+       a.APP_DATE [Application Date],
+	   a.APP_AMT [Application Amount],
+	   b.NAME_G [Product],
+	   c.NAME_G [Status],
+       ROW_NUMBER()OVER(PARTITION BY a.UNI_KEY ORDER BY a.APP_DATE) Numbering,
+	   CASE WHEN DATEDIFF(MONTH, A.APP_DATE, LEAD(A.APP_DATE) OVER (PARTITION BY A.UNI_KEY ORDER BY A.APP_DATE)) <= 6 THEN N'მალე დაბრუნებული'
+	              WHEN DATEDIFF(MONTH, A.APP_DATE, LEAD(A.APP_DATE) OVER (PARTITION BY A.UNI_KEY ORDER BY A.APP_DATE)) BETWEEN 7 AND 12 THEN N'სტაბილურად დაბრუნებული'
+                  WHEN DATEDIFF(MONTH, A.APP_DATE, LEAD(A.APP_DATE) OVER (PARTITION BY A.UNI_KEY ORDER BY A.APP_DATE)) > 12 THEN N'დაგვაინებულად დაბრუნებული'
+                  ELSE 'Error' END 'Custumer Segmentation'
+FROM APP$ a
+LEFT JOIN APP_TP$ b ON b.PROD_KEY=a.APP_TP_KEY
+LEFT JOIN APP_STAT$ c ON c.STAT_KEY=a.APP_STAT_KEY
+WHERE c.NAME_G = N'დამტკიცებული') e
+WHERE e.Numbering = 1
+
+
+-- Customer information
+
+SELECT a.UNI_KEY,
+       a.ID [ Customer Id ],
+       a.F_NAME+' '+ISNULL(a.L_NAME,'') [ Customer ],
+	   CASE WHEN a.GEND = 'F' THEN 'Female'
+	        WHEN a.GEND = 'M' THEN 'Male'
+			ELSE NULL END AS 'Gender',
+	   FLOOR(DATEDIFF(MONTH,a.BRTH_DATE,GETDATE())/12) [ Age ],
+	   b.NAME_G [ Nationality],
+	   ISNULL(c.NAME_G ,N'არ არის მითითებული') [ City ] ,
+	   ISNULL(d.NAME_G,N'არ არის მითითებული')  [ Address] ,
+	   a.INCOM [ Monthly Income ]
+FROM PPL$ a
+LEFT JOIN COUNTR$ b on b.CNTR_KEY  = a.NAT_KEY
+LEFT JOIN CITY$ c on c.CT_KEY = a.CIT_KEY
+LEFT JOIN ADDR$ d on d.ADDR_KEY = a.ADDR
